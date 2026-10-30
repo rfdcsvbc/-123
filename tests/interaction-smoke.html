@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><title>HUI 手势操作链路自检</title>
+<style>body{margin:0;background:#09120e;color:#d6e8db;font:14px/1.7 system-ui}header{padding:12px 20px;display:flex;gap:20px;align-items:center}button{padding:8px 20px}iframe{display:block;width:100%;height:650px;border:0}#result{white-space:pre-wrap;padding:10px 20px;margin:0}</style>
+<header><b>手势操作链路自检</b><button id="run" disabled>开始自检</button><span>使用合成关节点，不启用摄像头</span></header>
+<pre id="result" role="status">等待开始</pre>
+<iframe id="app-frame" src="/?gesture-rehearsal=1" title="手势交互测试页面"></iframe>
+<script type="module">
+import { poseHand, transformHand } from './hand-fixtures.js';
+const frame = document.querySelector('#app-frame');
+const result = document.querySelector('#result');
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const child = () => frame.contentDocument;
+const $ = id => child().getElementById(id);
+const assert = (value, message) => { if (!value) throw new Error(message); result.textContent += `PASS · ${message}\n`; };
+async function hold(hands, duration = 300) {
+  const until = performance.now() + duration;
+  while (performance.now() < until) {
+    frame.contentWindow.postMessage({type:'hui-test-frame',hands}, location.origin);
+    await sleep(32);
+  }
+}
+const pose = name => [transformHand(poseHand(name),{scale:0.55})];
+async function point(id, fraction = 0.5) {
+  const target = $(id), rect = target.getBoundingClientRect();
+  const width = frame.contentWindow.innerWidth, height = frame.contentWindow.innerHeight;
+  const x = rect.left + rect.width * fraction, y = rect.top + rect.height / 2;
+  if (x < 0 || x >= width || y < 0 || y >= height) throw new Error(`${id} 不在屏幕内`);
+  const hand = transformHand(poseHand('point'), {scale:0.2});
+  const dx = 1 - (0.12 + x / (width - 1) * 0.76) - hand[8].x;
+  const dy = 0.1 + y / (height - 1) * 0.55 - hand[8].y;
+  await hold([],100);
+  await hold([hand.map(p=>({...p,x:p.x+dx,y:p.y+dy}))],1250);
+}
+async function reveal(id) {
+  for (let i=0;i<8;i++) {
+    const box = $(id).getBoundingClientRect(), panel = $('play-panel').getBoundingClientRect();
+    if (box.top >= panel.top && box.bottom <= panel.bottom) return;
+    await point(box.top < panel.top ? 'gesture-scroll-up' : 'gesture-scroll-down');
+  }
+  throw new Error(`无法通过手势翻页找到 ${id}`);
+}
+document.querySelector('#run').onclick = async () => {
+  const button = document.querySelector('#run'); button.disabled=true; result.textContent='';
+  try {
+    const deadline=performance.now()+10000;
+    while (child()?.documentElement?.dataset.gestureRehearsal!=='ready') {
+      if (performance.now()>deadline) throw new Error('测试页面尚未准备好');
+      await sleep(50);
+    }
+    frame.contentWindow.postMessage({type:'hui-test-start'}, location.origin); await sleep(750);
+    await reveal('talisman-mode'); await point('talisman-mode');
+    assert($('talisman-mode').getAttribute('aria-pressed')==='true','食指停留开启符箓模式');
+    assert($('oracle-title').textContent==='雷地豫','视频同款雷地豫文字与默认卦签');
+    await hold(pose('pinch'),650); await hold(pose('palm'),300);
+    assert(!$('oracle-presentation').hidden,'捏合蓄力后张掌出签');
+    await hold(pose('fist'),350); await hold([],400);
+    assert($('oracle-presentation').hidden,'握拳收签且不误触发蓄力');
+    await hold(pose('palm'),250); await hold(pose('pinch'),500); await hold(pose('palm'),350);
+    assert(!$('oracle-presentation').hidden,'收签后再次捏合可重新出签');
+    const oldTitle=$('oracle-title').textContent;
+    await point('oracle-recast');
+    assert($('oracle-title').textContent!==oldTitle,'食指停留再卜一卦');
+    await point('oracle-recall'); await hold([],400);
+    assert($('oracle-presentation').hidden,'食指停留收签');
+    const palms = span => [0.5-span/2,0.5+span/2].map(x=>{
+      const hand=transformHand(poseHand('palm'),{scale:0.28});
+      const center=[0,5,9,17].reduce((sum,i)=>sum+hand[i].x,0)/4;
+      return hand.map(p=>({...p,x:p.x+x-center}));
+    });
+    const before=Number($('size').value);
+    await hold(palms(0.3),300); await hold(palms(0.42),450);
+    assert(Number($('size').value)>before,'双掌拉开放大');
+    const larger=Number($('size').value); await hold(palms(0.2),450);
+    assert(Number($('size').value)<larger,'双掌靠近缩小');
+    await hold([],200);
+    await reveal('talisman-type'); const prev=$('talisman-type').value;
+    await point('talisman-type'); assert($('talisman-type').value!==prev,'食指停留轮换卦签');
+    await reveal('volume-down'); const volume=Number($('volume').value);
+    await point('volume-down'); assert(Number($('volume').value)===volume-10,'手势翻页与音量调节');
+    await point('mute'); assert($('mute').getAttribute('aria-pressed')==='true','食指停留静音');
+    await point('mute'); assert($('mute').getAttribute('aria-pressed')==='false','移开再停留恢复声音');
+    await reveal('challenge'); await point('challenge');
+    assert($('challenge').getAttribute('aria-pressed')==='true','手势切换八卦追光玩法');
+    assert($('talisman-mode').getAttribute('aria-pressed')==='false','玩法切换关闭卦签模式');
+    result.textContent+='全部通过 · 合成手势已走完整识别与页面操作链路';
+  } catch(error) { result.textContent+=`FAIL · ${error.message}`; console.error(error); }
+  finally { await hold([],200); button.disabled=false; }
+};
+document.querySelector('#run').disabled=false;
+</script>
+</html>
