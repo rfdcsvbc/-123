@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>HUI 本地手势模型自检</title>
+<style>body{background:#08120e;color:#cde9dc;font:16px/1.8 system-ui;padding:40px}button{padding:12px 24px}canvas{display:none}</style>
+<h1>本地手势模型自检</h1>
+<p>不启用摄像头。加载本地 WASM 与模型，处理一帧空白画面。</p>
+<button id="run">开始自检</button><p id="result" role="status">等待开始</p>
+<canvas id="frame" width="640" height="480"></canvas>
+<script type="module">
+  import { Hands } from '@mediapipe/hands';
+  document.querySelector('#run').onclick = async () => {
+    const result = document.querySelector('#result');
+    const button = document.querySelector('#run');
+    button.disabled = true;
+    result.textContent = '正在加载本地模型…';
+    const hands = new Hands({ locateFile: (file) => `/mediapipe/${file}` });
+    try {
+      hands.setOptions({ maxNumHands: 2, modelComplexity: 1,
+        minDetectionConfidence: 0.55, minTrackingConfidence: 0.6 });
+      let received = false;
+      hands.onResults((data) => {
+        received = true;
+        if (data.multiHandLandmarks?.length) throw new Error('空白帧不应识别出手部');
+      });
+      await hands.initialize();
+      const frame = document.querySelector('#frame');
+      const ctx = frame.getContext('2d');
+      ctx.fillStyle = '#222'; ctx.fillRect(0, 0, 640, 480);
+      await hands.send({ image: frame });
+      if (!received) throw new Error('模型没有返回识别结果');
+      result.textContent = 'PASS · 本地模型初始化、WASM 推理、空白帧结果均正常';
+    } catch (error) {
+      result.textContent = `FAIL · ${error.message}`;
+      console.error(error);
+    } finally {
+      await hands.close(); button.disabled = false;
+    }
+  };
+</script>
+</html>
