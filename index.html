@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="回 · 手势八卦 — 科技回锅肉创作的单手生成式动态体验。"
+    />
+    <meta name="theme-color" content="#050706" />
+    <title>回 · 手势八卦</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="stage" aria-label="Generative Bagua interaction canvas"></canvas>
+      <div class="oracle-presentation" id="oracle-presentation" hidden>
+        <article class="oracle-card" id="oracle-card" aria-label="雷地豫卦签">
+          <div class="oracle-head">
+            <div class="oracle-lines" id="oracle-lines" aria-hidden="true"></div>
+            <h2 id="oracle-title">雷地豫</h2>
+            <span class="oracle-badge" id="oracle-badge">吉</span>
+          </div>
+          <p class="oracle-relation" id="oracle-relation">上雷震 · 下地坤</p>
+          <div class="oracle-rule" aria-hidden="true"></div>
+          <p class="oracle-meaning" id="oracle-meaning">雷出地奋，豫。顺时而动，万事和乐，宜早做准备。</p>
+          <p class="oracle-english" id="oracle-english" lang="en">Thunder bursts from earth. Prepare well, then enjoy.</p>
+          <p class="oracle-note" id="oracle-note">六爻安静 · 守常则吉</p>
+          <div class="oracle-actions"><button id="oracle-recast" type="button">再 卜 一 卦</button><button id="oracle-recall" type="button">收 签</button></div>
+        </article>
+        <div class="oracle-side" aria-hidden="true"><small>卦 象 · 六 爻</small><div id="oracle-side-lines"></div></div>
+      </div>
+      <div id="gesture-cursor" class="gesture-cursor" aria-hidden="true" hidden><i></i><span id="dwell-label">食指指向 · 停留选择</span></div>
+      <div class="ambient-label" aria-hidden="true"><span>HUI</span>万象流转 · 一念成阵</div>
+
+      <section class="gate" id="gate" aria-labelledby="project-title">
+        <div class="gate__frame" aria-hidden="true"></div>
+        <p class="eyebrow">HUI · GESTURE BAGUA</p>
+        <h1 id="project-title"><span>回</span>手势八卦</h1>
+        <p class="byline">科技回锅肉 · 2026</p>
+
+        <div class="gesture-sequence" aria-label="Point, close fist, open palm">
+          <span>☝</span><i>→</i><span>✊</span><i>→</i><span>🖐</span>
+        </div>
+
+        <p class="intro">
+          用一只手，唤醒、展开并引导一座变化之阵。<br />
+          <span>指尖引流光，捏合聚灵力。八卦追光，等你来挑战。</span>
+        </p>
+
+        <div class="gate__actions">
+          <button class="primary" id="enable-camera" type="button">
+            启用摄像头 <small>ENABLE CAMERA</small>
+          </button>
+          <button class="secondary" id="manual-mode" type="button">
+            手动体验 <small>MANUAL MODE</small>
+          </button>
+        </div>
+
+        <p class="gate-features">实时手势 · 双掌缩放 · 悬浮符箓 · 八卦追光</p>
+
+        <p class="privacy-note">
+          摄像头画面仅在设备本地处理，不上传、不录制。<br />
+          <span>Camera frames stay on your device and are never uploaded or recorded.</span>
+        </p>
+      </section>
+
+      <section class="hud" id="hud" hidden>
+        <div class="status">
+          <span class="status__icon" id="status-icon">☝</span>
+          <div>
+            <strong id="status-zh">伸出食指 · 唤醒阵眼</strong>
+            <small id="status-en">POINT · AWAKEN THE CENTER</small>
+          </div>
+        </div>
+
+        <div class="controls">
+          <span class="phase" id="phase-label">待唤醒</span>
+          <button id="reset" type="button" title="重置 (R)">重置</button>
+          <button id="mute" type="button" title="静音 (M)" aria-pressed="false">声音</button>
+        </div>
+        <div class="tracking-panel">
+          <div class="tracking" id="tracking" data-state="manual"><i></i><span id="tracking-label">鼠标 / 触屏模式</span><small id="tracking-fps"></small></div>
+          <div class="tracking-actions">
+            <button id="camera-toggle" type="button">启用摄像头</button>
+            <button id="preview-toggle" type="button" aria-pressed="false" hidden>查看手部</button>
+          </div>
+          <div id="gesture-ui-help" hidden>
+            <p class="gesture-help">☝ 指向按钮停留 0.9 秒执行；<br>指向选项可轮换，滑块可调节。</p>
+            <div class="gesture-scroll-controls"><button id="gesture-scroll-up" type="button">操作栏 ↑</button><button id="gesture-scroll-down" type="button">操作栏 ↓</button></div>
+          </div>
+          <label class="sensitivity" id="sensitivity-control" hidden>响应速度
+            <select id="sensitivity" aria-label="手势响应速度">
+              <option value="responsive">灵敏</option><option value="balanced">均衡</option><option value="steady">稳健</option>
+            </select>
+          </label>
+          <div class="gesture-guide" id="gesture-guide" hidden>
+            <strong>手势分清楚，动作更准确</strong>
+            <span>✊ 握拳：四根手指全部收拢</span>
+            <span>🤏 捏合：拇指食指接触，其余三指伸直</span>
+            <span>🖐 张掌：展开四指，释放蓄力</span>
+            <span>👐 双掌：拉开放大，靠近缩小</span>
+            <b id="live-gesture">等待手部</b>
+          </div>
+          <div class="camera-preview" id="camera-preview" hidden>
+            <video id="camera" autoplay muted playsinline aria-hidden="true"></video>
+            <canvas id="hand-overlay" width="320" height="240" aria-label="手部关键点预览"></canvas>
+            <div class="gesture-readout"><span id="gesture-label">等待手部</span><span>LOCAL ONLY</span></div>
+            <div class="meter"><i id="gesture-progress"></i></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="play-panel" id="play-panel" hidden>
+        <div class="panel-heading"><span>阵法实验室</span><small>PLAY WITH THE FLOW</small></div>
+        <button class="advance-button" id="advance" type="button">☯ <span>唤醒 / 展开 / 升维</span><small>点击推进</small></button>
+        <div class="play-actions">
+          <button id="vortex" type="button" aria-pressed="false"><span>↻</span>旋涡<kbd>V</kbd></button>
+          <button id="theme" type="button"><span>◈</span><b id="theme-name">青霄</b><kbd>T</kbd></button>
+        </div>
+        <div class="size-control">
+          <label for="size">阵图大小 <output id="size-value" for="size">100%</output></label>
+          <div><button id="size-down" type="button" aria-label="缩小阵图">−</button><input id="size" type="range" min="45" max="180" value="100" step="1" aria-label="阵图大小"><button id="size-up" type="button" aria-label="放大阵图">+</button></div>
+          <small>双掌拉开 / 靠近也可缩放</small>
+        </div>
+        <button class="charge-button" id="charge" type="button"><span>✦ 聚气 · 松开释放</span><small id="charge-label">捏合时其余三指伸直</small><i id="charge-fill"></i></button>
+        <div class="talisman-card">
+          <button id="talisman-mode" type="button" aria-pressed="false"><span>卦</span> 符箓模式 <kbd>F</kbd></button>
+          <div class="talisman-actions"><select id="talisman-type" aria-label="符箓种类"><option value="0">雷地豫 · 视频同款</option><option value="1">乾为天 · 自强</option><option value="2">坤为地 · 厚德</option></select><button id="cast-talisman" type="button">出签</button><button id="recall-talisman" type="button">收签</button></div>
+          <label class="talisman-writing" for="talisman-text">卦签题字<input id="talisman-text" type="text" maxlength="16" value="雷地豫" aria-label="卦签题字，最多八个字"><button id="apply-talisman-text" type="button">写入</button></label>
+          <p id="talisman-status">视频同款黑金卦签 · 捏合蓄力，张掌出签</p>
+        </div>
+        <div class="challenge-card">
+          <div class="challenge-heading"><span>八卦追光</span><b id="challenge-count">0 / 8</b></div>
+          <p id="challenge-copy">循光而行，依次点亮八个卦象</p>
+          <div class="meter"><i id="challenge-progress"></i></div>
+          <button id="challenge" type="button" aria-pressed="false">开始 / 结束挑战 <kbd>G</kbd></button>
+        </div>
+        <div class="sound-controls">
+          <div><span id="sound-status">点击试听开启声音</span><button id="volume-down" type="button" aria-label="减小音量">音 −</button><button id="volume-up" type="button" aria-label="增大音量">音 +</button><button id="sound-test" type="button">试听 ♪</button></div>
+          <label for="volume">音量 <input id="volume" type="range" min="0" max="100" value="65" aria-label="音量"><output id="volume-value" for="volume">65%</output></label>
+        </div>
+        <p class="gesture-tips">☝ 单指唤醒　✊ 四指收拳<br>🤏 捏合时其余三指伸直<br>🖐 张掌释放　✌ 比耶换色</p>
+      </aside>
+
+      <aside class="manual-help" id="manual-help" hidden>
+        CLICK · ADVANCE　 MOVE · GUIDE　 WHEEL · SCALE　 V · VORTEX　 R · RESET
+      </aside>
+
+      <div class="error" id="error" role="status" hidden></div>
+      <div class="toast" id="toast" role="status" hidden></div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
